@@ -74,7 +74,7 @@ runs:
 
     - name: Search artifacts
       id: search
-      if: contains(fromJson('["search", "delete"]'), inputs.method) && fromJson(steps.list.outputs.response).total_count > 0 && inputs.artifact_name != ''
+      if: contains(fromJson('["search", "delete"]'), inputs.method) && inputs.artifact_name != ''
       shell: bash
       env:
         artifacts: ${{ steps.list.outputs.response }}
@@ -87,7 +87,7 @@ runs:
         # Validate and report result
         search_count=$(echo $search | jq -r 'length')
         if [[ "$search_count" -gt 0 ]]; then
-          echo "Found $(echo search | jq 'length') artifacts(s) matching the search criteria! (Search regex: $search_query)"
+          echo "Found $search_count artifacts(s) matching the search criteria! (Search regex: $search_query)"
         else
           echo "No artifacts found! (Search regex: $search_query)"
           if [[ "$no_results_fail" == "true" ]]; then
