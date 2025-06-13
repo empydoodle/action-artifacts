@@ -1,0 +1,166 @@
+name: GitHub Artifacts
+description: 'List, search or delete GitHub artifacts'
+
+inputs:
+  github_token:
+    description: 'GitHub token (e.g. secrets.GITHUB_TOKEN)'
+    required: true
+  repo_owner:
+    description: 'Owner of the target repository'
+    required: true
+  repo_name:
+    description: 'Name of the target repository'
+    required: true
+  method:
+    description: 'Method to use (list, search, delete)'
+    required: true
+  search_name:
+    description: 'Name (not ID) of the artifact to search / delete'
+    default: ''
+    required: false
+  action_fail_on_empty_search:
+    description: 'Fail the action if no artifacts are found in search'
+    default: 'false'
+    required: false
+  action_fail_on_delete_error:
+    description: 'Fail the action if a delete operation fails'
+    default: 'false'
+    required: false
+
+outputs:
+  artifacts:
+    description: 'Standard response from /actions/artifacts API call (JSON array)'
+    value: ${{ steps.list.outputs.response }}
+  search_results:
+    description: 'List of artifacts matching the search criteria (JSON array)'
+    value: ${{ steps.search.outputs.results }}
+  delete_results:
+    description: 'List of artifacts deleted by the action (JSON array)'
+    value: ${{ steps.delete.outputs.results }}
+
+runs:
+  using: composite
+  steps:
+    - name: List all artifacts
+      id: list
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        repo: ${{ inputs.repo_owner }}/${{ inputs.repo_name }}
+      run: |
+        # Get response + HTTP code
+        gh api -i -X GET \
+          -H "Accept: application/vnd.github+json" \
+          .artifacts /repos/$repo/actions/artifacts \
+          > response.txt
+        readarray -t response <<< $(cat response.txt)
+
+        # Validate HTTP code
+        if [[ "${response[0]}" =~ ["200 OK$"] ]]; then
+          echo "GitHub API called successfully!"
+        else
+          echo "Error calling GitHub API!"
+          echo "Response:"
+          cat response.txt
+          exit 1
+        fi
+
+        # Set output
+        echo "response=$(echo "${response[-1]}" | jq -c)" >> $GITHUB_OUTPUT
+
+        # Report results
+        echo "Found $(echo "${response[-1]}" | jq -r 'length') artifact(s)!"
+
+        # Cleanup
+        rm response.txt
+        unset response
+
+    - name: Search artifacts
+      id: search
+      if: contains(fromJson('["search", "delete"]'), inputs.method) && steps.list.outputs.response != '[]' && inputs.artifact_name != ''
+      shell: bash
+      env:
+        artifacts: ${{ steps.list.outputs.response }}
+        search_query: ${{ inputs.search_name }}
+        no_results_fail: ${{ inputs.action_fail_on_empty_search }}
+      run: |
+        # Extract target artifact(s)
+        search=$(echo $artifacts | jq -c --arg q "$search_query" 'map(select(.name | test($q)))')
+
+        # Validate and report result
+        search_count=$(echo $search | jq -r 'length')
+        if [[ "$search_count" -gt 0 ]]; then
+          echo "Found $(echo search | jq 'length') artifacts(s) matching the search criteria! (Search regex: $search_query)"
+        else
+          echo "No artifacts found! (Search regex: $search_query)"
+          if [[ "$no_results_fail" == "true" ]]; then
+            exit 1
+          fi
+        fi
+
+        # Set output
+        echo "results=$(echo $search | jq -c)" >> $GITHUB_OUTPUT
+
+    - name: Delete artifacts
+      id: delete
+      if: contains(fromJson('["delete"]'), inputs.method) && steps.search.outputs.results != '[]'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        repo: ${{ inputs.repo_owner }}/${{ inputs.repo_name }}
+        artifacts: ${{ steps.search.outputs.results }}
+        no_delete_fail: ${{ inputs.action_fail_on_delete_error }}
+      run: |
+        # Delete artifacts
+        results="[]"
+        for artifact in $(echo $artifacts | jq -r '.[]'); do
+          id=$(echo $artifact | jq -r '.id')
+          name=$(echo $artifact | jq -r '.name')
+          echo "Deleting artifact: $name (ID: $id)..."
+
+          # Call GitHub API to delete artifact
+          gh api -i -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            /repos/$repo/actions/artifacts/$id \
+            > $id.txt
+          readarray -t response <<< $(cat $id.txt)
+
+          # Validate HTTP code
+          if [[ "${response[0]}" =~ ["200 OK$"] ]]; then
+            echo "GitHub API called successfully!"
+            results=true
+          else
+            echo "Error calling GitHub API!"
+            echo "Response:"
+            cat $id.txt
+            result=false
+            if [[ "$no_delete_fail" == "true" ]]; then
+              exit 1
+            fi
+          fi
+
+          # Add result to output array
+          results=$(echo $results | jq -c \
+            --arg     id     "$id" \
+            --arg     name   "$name" \
+            --argjson result "$result" \
+            '. + [{
+              "name":    $name,
+              "id":      $id,
+              "deleted": $result
+            }]'
+          )
+
+          # Cleanup
+          rm $id.txt
+          unset response
+          echo "  ... done."
+        done
+
+        # Set output
+        echo "results=$(echo $results | jq -c)" >> $GITHUB_OUTPUT
+
+        # Report results
+        total=$(echo $results | jq -r 'length')
+        success=$(echo $results | jq -r 'map(select(.deleted == true)) | length')
+        echo "Successfully deleted $success/$total artifacts!"
