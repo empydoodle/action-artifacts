@@ -104,7 +104,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github_token }}
-        repo: ${{ inputs.repo_owner }}/${{ inputs.repo_name }}
+        repo: ${{ inputs.repo }}
         artifacts: ${{ steps.search.outputs.results }}
         no_delete_fail: ${{ inputs.action_fail_on_delete_error }}
       run: |
