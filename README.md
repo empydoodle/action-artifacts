@@ -21,8 +21,7 @@ The following inputs are required for this, and all subsequent, methods:
         uses: empydoodle/action-artifacts@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          repo_owner: 'me'
-          repo_name: 'my-repo'
+          repo: ${{ github.repository }}
           method: 'list'
 
       - name: List artifact names
@@ -49,8 +48,7 @@ By default, an empty search result (i.e. no artifacts found) will not fail the a
         uses: empydoodle/action-artifacts@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          repo_owner: 'me'
-          repo_name: 'my-repo'
+          repo: ${{ github.repository }}
           method: 'search'
           search_name: 'target-artifact'
           action_fail_on_empty_search: true # optional, defaults to false
@@ -81,8 +79,7 @@ By default, a failed delete operation will not fail the action (but will show in
         uses: empydoodle/action-artifacts@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          repo_owner: 'me'
-          repo_name: 'my-repo'
+          repo: ${{ github.repository }}
           method: 'delete'
           search_name: 'target-artifact'
           action_fail_on_empty_search: true # optional, defaults to false

@@ -5,11 +5,8 @@ inputs:
   github_token:
     description: 'GitHub token (e.g. secrets.GITHUB_TOKEN)'
     required: true
-  repo_owner:
-    description: 'Owner of the target repository'
-    required: true
-  repo_name:
-    description: 'Name of the target repository'
+  repo:
+    description: 'Target repository (i.e. owner/repo)'
     required: true
   method:
     description: 'Method to use (list, search, delete)'
