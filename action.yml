@@ -1,5 +1,8 @@
 name: GitHub Artifacts
 description: 'List, search or delete GitHub artifacts'
+branding:
+  icon: package
+  color: green
 
 inputs:
   github_token:
