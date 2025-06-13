@@ -11,8 +11,7 @@ Use `method` input: `list`.
 The following inputs are required for this, and all subsequent, methods:
 
 * `github_token`: Token to authenticate with GitHub API.
-* `repo_owner`: Owner of the repository where artifacts are stored.
-* `repo_name`: Name of the repository where artifacts are stored.
+* `repo`: The target repository (in the format `owner/repo`).
 
 ```yml
     steps:
@@ -26,12 +25,13 @@ The following inputs are required for this, and all subsequent, methods:
 
       - name: List artifact names
         env:
-          json: ${{ steps.list-artifacts.outputs.artifacts }}
+          no_artifacts: ${{ fromJson(steps.list-artifacts.outputs.artifacts).total_count }}
+          artifacts_json: ${{ fromJson(steps.list-artifacts.outputs.artifacts).artifacts }}
         run: |
-          echo $json | jq -r '.[].name'
+          echo $json | jq -r '.artifacts.[].name'
 ```
 
-Returns a JSON array of artifacts in the repository, based on value of `repo_owner` and `repo_name`.
+Returns standard API response of a JSON array of artifacts in the target repository (`repo`) - see [GitHub API documentation](https://docs.github.com/en/rest/actions/artifacts#list-artifacts-for-a-repository) for schema.
 
 ## Search for artifacts in a repository
 
