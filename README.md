@@ -94,19 +94,19 @@ By default, a failed delete operation will not fail the action (but will show in
           fi
 ```
 
-Returns a JSON array containing the deletion result of each targeted artifact, e.g.:
+Returns a JSON array containing the response from the deletion API call of each targeted artifact, e.g.:
 
 ```json
 [
   {
     "name": "target-artifact-0",
     "id": 123456789,
-    "deleted": true
+    "delete_response": "HTTP/2.0 200 OK"
   },
   {
     "name": "target-artifact-1",
     "id": 234567890,
-    "deleted": false
+    "delete_response": "HTTP/2.0 404 Not Found"
   }
 ]
 ```

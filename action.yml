@@ -124,12 +124,9 @@ runs:
           readarray -t response <<< $(cat $id.txt)
 
           # Validate HTTP code
-          if [[ "${response[0]}" =~ ["200 OK$"] ]]; then
-            echo "GitHub API called successfully!"
-            results=true
-          else
-            echo "Error calling GitHub API!"
-            echo "Response:"
+          if [[ ! "${response[0]}" =~ ["200 OK$"] ]]; then
+            echo "  Error calling GitHub API!"
+            echo "  Response:"
             cat $id.txt
             result=false
             if [[ "$no_delete_fail" == "true" ]]; then
@@ -139,20 +136,20 @@ runs:
 
           # Add result to output array
           results=$(echo $results | jq -c \
-            --arg     id     "$id" \
-            --arg     name   "$name" \
-            --argjson result "$result" \
+            --arg id       "$id" \
+            --arg name     "$name" \
+            --arg response "${response[0]}" \
             '. + [{
-              "name":    $name,
-              "id":      $id,
-              "deleted": $result
+              "name":            $name,
+              "id":              $id,
+              "delete_response": $result
             }]'
           )
 
           # Cleanup
           rm $id.txt
           unset response
-          echo "  ... done."
+          echo "... done."
         done
 
         # Set output
