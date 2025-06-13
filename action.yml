@@ -1,5 +1,5 @@
-name: GitHub Artifacts
-description: 'List, search or delete GitHub artifacts'
+name: Doodle Artifacts
+description: 'List, search for and delete GitHub artifacts by repository'
 branding:
   icon: package
   color: green

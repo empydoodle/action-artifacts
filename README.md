@@ -1,4 +1,4 @@
-# action-artifacts
+# doodle-artifacts
 
 List, search or delete GitHub artifacts.
 
@@ -59,7 +59,7 @@ By default, an empty search result (i.e. no artifacts found) will not fail the a
         run: |
           for entry in $(echo $json | jq -r '.[]') ; do
             echo $entry | jq '{"name", "id", "size_in_bytes", "updated_at", "archive_download_url"}'
-          fi
+          done
 ```
 
 Returns a JSON array of artifacts that match the search criteria.
@@ -90,8 +90,13 @@ By default, a failed delete operation will not fail the action (but will show in
           json: ${{ steps.delete-artifacts.outputs.delete_results }}
         run: |
           for entry in $(echo $json | jq -r '.[]') ; do
-            echo $entry | jq '{"name", "id", "size_in_bytes", "updated_at", "archive_download_url"}'
-          fi
+            name=$(echo $entry | jq -r '.name')
+            if [[ "$(echo $entry | jq '.deleted") == "true" ]]; then
+              echo "Artifact $name was deleted!"
+            else
+              echo "Artifact $name was not deleted."
+            fi
+          done
 ```
 
 Returns a JSON array containing the deletion result of each targeted artifact, e.g.:
