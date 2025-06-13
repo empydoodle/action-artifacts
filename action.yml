@@ -77,12 +77,12 @@ runs:
       if: contains(fromJson('["search", "delete"]'), inputs.method) && fromJson(steps.list.outputs.response).total_count > 0 && inputs.artifact_name != ''
       shell: bash
       env:
-        artifacts: ${{ fromJson(steps.list.outputs.response).artifacts }}
+        artifacts: ${{ steps.list.outputs.response }}
         search_query: ${{ inputs.search_name }}
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |
         # Extract target artifact(s)
-        search=$(echo $artifacts | jq -c --arg q "$search_query" 'map(select(.name | test($q)))')
+        search=$(echo $artifacts | jq -c --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')
 
         # Validate and report result
         search_count=$(echo $search | jq -r 'length')
