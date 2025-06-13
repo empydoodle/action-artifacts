@@ -48,7 +48,7 @@ runs:
         # Get response + HTTP code
         gh api -i -X GET \
           -H "Accept: application/vnd.github+json" \
-          .artifacts /repos/$repo/actions/artifacts \
+          /repos/$repo/actions/artifacts \
           > response.txt
         readarray -t response <<< $(cat response.txt)
 
@@ -66,7 +66,7 @@ runs:
         echo "response=$(echo "${response[-1]}" | jq -c)" >> $GITHUB_OUTPUT
 
         # Report results
-        echo "Found $(echo "${response[-1]}" | jq -r 'length') artifact(s)!"
+        echo "Found $(echo "${response[-1]}" | jq -r '.total_count') artifact(s)!"
 
         # Cleanup
         rm response.txt
@@ -74,10 +74,10 @@ runs:
 
     - name: Search artifacts
       id: search
-      if: contains(fromJson('["search", "delete"]'), inputs.method) && steps.list.outputs.response != '[]' && inputs.artifact_name != ''
+      if: contains(fromJson('["search", "delete"]'), inputs.method) && fromJson(steps.list.outputs.response).total_count > 0 && inputs.artifact_name != ''
       shell: bash
       env:
-        artifacts: ${{ steps.list.outputs.response }}
+        artifacts: ${{ fromJson(steps.list.outputs.response).artifacts }}
         search_query: ${{ inputs.search_name }}
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |
