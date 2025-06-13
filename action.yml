@@ -142,7 +142,7 @@ runs:
             '. + [{
               "name":            $name,
               "id":              $id,
-              "delete_response": $result
+              "delete_response": $response
             }]'
           )
 
