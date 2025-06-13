@@ -45,6 +45,7 @@ runs:
         GH_TOKEN: ${{ inputs.github_token }}
         repo: ${{ inputs.repo }}
       run: |
+        # List all artifacts in repo
         # Get response + HTTP code
         gh api -i -X GET \
           -H "Accept: application/vnd.github+json" \
@@ -74,7 +75,7 @@ runs:
 
     - name: Search artifacts
       id: search
-      if: contains(fromJson('["search", "delete"]'), inputs.method) && inputs.artifact_name != ''
+      if: contains(fromJson('["search", "delete"]'), inputs.method) && inputs.search_name != ''
       shell: bash
       env:
         artifacts: ${{ steps.list.outputs.response }}
