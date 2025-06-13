@@ -54,9 +54,7 @@ runs:
         readarray -t response <<< $(cat response.txt)
 
         # Validate HTTP code
-        if [[ "${response[0]}" =~ ["200 OK$"] ]]; then
-          echo "GitHub API called successfully!"
-        else
+        if [[ ! "${response[0]}" =~ ("200 OK"$) ]]; then
           echo "Error calling GitHub API!"
           echo "Response:"
           cat response.txt
@@ -124,11 +122,10 @@ runs:
           readarray -t response <<< $(cat $id.txt)
 
           # Validate HTTP code
-          if [[ ! "${response[0]}" =~ ["200 OK$"] ]]; then
+          if [[ ! "${response[0]}" =~ ("200 OK"|"204 No Content"$) ]]; then
             echo "  Error calling GitHub API!"
             echo "  Response:"
             cat $id.txt
-            result=false
             if [[ "$no_delete_fail" == "true" ]]; then
               exit 1
             fi
@@ -148,6 +145,8 @@ runs:
 
           # Cleanup
           rm $id.txt
+          unset id
+          unset name
           unset response
           echo "... done."
         done

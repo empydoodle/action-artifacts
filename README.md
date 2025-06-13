@@ -101,7 +101,7 @@ Returns a JSON array containing the response from the deletion API call of each 
   {
     "name": "target-artifact-0",
     "id": 123456789,
-    "delete_response": "HTTP/2.0 200 OK"
+    "delete_response": "HTTP/2.0 204 No Content"
   },
   {
     "name": "target-artifact-1",
