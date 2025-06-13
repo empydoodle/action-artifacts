@@ -106,12 +106,12 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         repo: ${{ inputs.repo }}
-        artifacts: ${{ steps.search.outputs.results }}
+        search: ${{ steps.search.outputs.results }}
         no_delete_fail: ${{ inputs.action_fail_on_delete_error }}
       run: |
         # Delete artifacts
         results="[]"
-        for artifact in $(echo $artifacts | jq -r '.[]'); do
+        for artifact in $(echo $search | jq -rc '.[]'); do
           id=$(echo $artifact | jq -r '.id')
           name=$(echo $artifact | jq -r '.name')
           echo "Deleting artifact: $name (ID: $id)..."
