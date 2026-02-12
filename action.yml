@@ -225,7 +225,7 @@ runs:
         echo "Successfully deleted $success/$total artifacts!"
 
     - name: Cleanup files
-      if: inputs.cleanup_files == 'true'
+      if: always() && inputs.cleanup_files == 'true'
       shell: bash
       run: |
         rm artifacts_list.json artifacts_search.json artifacts_delete.json
