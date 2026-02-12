@@ -93,6 +93,8 @@ runs:
         page_size: 100
         mismatch_fail: ${{ inputs.action_fail_on_list_mismatch }}
       run: |
+        # Fetch all artifacts in repo
+
         # Set placeholder file
         echo '[]' > artifacts_list.json
 
