@@ -111,10 +111,6 @@ runs:
           # Extract artifacts array from response
           page_list=$(echo ${response[-1]} | jq '.artifacts')
 
-          # DEBUG
-          cat artifacts.json | jq --argjson list "$page_list" '. += $list'
-          cat artifacts.json | jq -r --argjson list "$page_list" '. += $list' | jq -rc 'flatten'
-
           # Add to full list file
           echo $(cat artifacts.json | jq -rc --argjson list "$page_list" '. += $list | flatten') > artifacts.json
 
