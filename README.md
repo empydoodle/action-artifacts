@@ -43,6 +43,8 @@ It populates the following outputs:
           echo $artifacts | jq 'map(.name)'
 ```
 
+The list artifacts is available in the `artifacts_list.json` file.
+
 ## Search for artifacts in a repository
 
 Use `method` input: `search`.
@@ -81,6 +83,8 @@ It populates the following outputs (in addition to `list` outputs):
             echo $entry | jq '{"name", "id", "size_in_bytes", "updated_at", "archive_download_url"}'
           done
 ```
+
+The list of search results is available in the `artifacts_search.json` file.
 
 ## Delete target artifacts in a repository
 
@@ -127,3 +131,9 @@ Populates the following outputs (in addition to `search` outputs):
             fi
           done
 ```
+
+The list of artifact statuses is available in the `artifacts_delete.json` file.
+
+## Additional Inputs
+
+* `cleanup_files`: Remove files after run.
