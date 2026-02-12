@@ -81,7 +81,7 @@ runs:
 
         # Cleanup
         rm response.txt
-        unset response
+        unset check
 
     - name: Fetch all artifacts
       id: list
@@ -89,7 +89,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         repo: ${{ inputs.repo }}
-        no_artifacts: ${{ steps.check.output.no_artifacts }}
+        no_artifacts: ${{ steps.check.outputs.no_artifacts }}
         page_size: 100
         mismatch_fail: ${{ inputs.action_fail_on_list_mismatch }}
       run: |
@@ -109,10 +109,10 @@ runs:
             "/repos/${repo}/actions/artifacts?per_page=${page_size}&page=${page}")
 
           # Extract artifacts array from response
-          page_list=$(echo ${response[-1]} | jq '.artifacts')
+          page_list=$(echo "${response[-1]}" | jq '.artifacts')
 
           # Add to full list file
-          echo $(cat artifacts.json | jq -rc --argjson list "$page_list" '. += $list | flatten') > artifacts.json
+          echo "$(cat artifacts.json | jq -rc --argjson list "$page_list" '. += $list | flatten')" > artifacts.json
 
           unset response
         done
@@ -134,7 +134,7 @@ runs:
         echo "artifacts=$(cat artifacts.json | jq -rc)" >> $GITHUB_OUTPUT
 
         # Cleanup
-        rm artifacts.txt
+        rm artifacts.json
 
     - name: Search artifacts
       id: search
@@ -146,10 +146,10 @@ runs:
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |
         # Extract target artifact(s)
-        search=$(echo $artifacts | jq -c --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')
+        search=$(echo "$artifacts" | jq -c --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')
 
         # Validate and report result
-        search_count=$(echo $search | jq -r 'length')
+        search_count=$(echo "$search" | jq -r 'length')
         if [[ "$search_count" -gt 0 ]]; then
           echo "Found $search_count artifacts(s) matching the search criteria! (Search regex: $search_query)"
         else
@@ -174,9 +174,9 @@ runs:
       run: |
         # Delete artifacts
         results="[]"
-        for artifact in $(echo $search | jq -rc '.[]'); do
-          id=$(echo $artifact | jq -r '.id')
-          name=$(echo $artifact | jq -r '.name')
+        for artifact in $(echo "$search" | jq -rc '.[]'); do
+          id=$(echo "$artifact" | jq -r '.id')
+          name=$(echo "$artifact" | jq -r '.name')
           echo "Deleting artifact: $name (ID: $id)..."
 
           # Call GitHub API to delete artifact
@@ -201,7 +201,7 @@ runs:
           fi
 
           # Add result to output array
-          results=$(echo $results | jq -c \
+          results=$(echo "$results" | jq -c \
             --arg     id     "$id" \
             --arg     name   "$name" \
             --argjson result "$result" \
@@ -222,6 +222,6 @@ runs:
         echo "results=$(echo $results | jq -c)" >> $GITHUB_OUTPUT
 
         # Report results
-        total=$(echo $results | jq -r 'length')
-        success=$(echo $results | jq -r 'map(select(.deleted == true)) | length')
+        total=$(echo "$results" | jq -r 'length')
+        success=$(echo "$results" | jq -r 'map(select(.deleted == true)) | length')
         echo "Successfully deleted $success/$total artifacts!"
