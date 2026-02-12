@@ -142,7 +142,7 @@ runs:
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |
         # Extract target artifact(s) to results file
-        echo "$(cat artifacts_list.json | jq -rc --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')" > artifacts_search.json
+        echo "$(cat artifacts_list.json | jq -rc --arg q "$search_query" 'map(select(.name | test($q)))')" > artifacts_search.json
 
         # Validate and report result
         search_count=$(cat artifacts_search.json | jq -r 'length')
