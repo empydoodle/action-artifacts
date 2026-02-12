@@ -18,6 +18,10 @@ inputs:
     description: 'Name (not ID) of the artifact to search / delete'
     default: ''
     required: false
+  action_fail_on_list_mismatch:
+    description: "Fail the action if the populated list of artifacts' size does not equal the size report by GitHub API"
+    default: 'false'
+    required: false
   action_fail_on_empty_search:
     description: 'Fail the action if no artifacts are found in search'
     default: 'false'
@@ -28,9 +32,12 @@ inputs:
     required: false
 
 outputs:
+  no_artifacts:
+    description: 'Number of artifacts in repository (as reported by GitHub API)'
+    value: ${{ steps.check.outputs.no_artifacts }}
   artifacts:
-    description: 'Standard response from /actions/artifacts API call (JSON array)'
-    value: ${{ steps.list.outputs.response }}
+    description: 'Full list of repo artifacts JSON objects (JSON array)'
+    value: ${{ steps.list.outputs.artifacts }}
   search_results:
     description: 'List of artifacts matching the search criteria (JSON array)'
     value: ${{ steps.search.outputs.results }}
@@ -41,45 +48,104 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: List all artifacts
-      id: list
+    - name: Check connection and artifact count
+      id: check
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         repo: ${{ inputs.repo }}
       run: |
-        # List all artifacts in repo
+        # Check total number of artifacts in repo + validate GitHub API connection
+
         # Get response + HTTP code
         gh api -i -X GET \
           -H "Accept: application/vnd.github+json" \
-          /repos/$repo/actions/artifacts \
+          "/repos/${repo}/actions/artifacts?per_page=1" \
           > response.txt
-        readarray -t response <<< $(cat response.txt)
+        readarray -t check <<< $(cat response.txt)
 
-        # Validate HTTP code
-        if [[ ! "${response[0]}" =~ ("200 OK"$) ]]; then
+        # Validate HTTP code, exit if not 200
+        if [[ ! "${check[0]}" =~ ("200 OK"$) ]]; then
           echo "Error calling GitHub API!"
           echo "Response:"
           cat response.txt
           exit 1
         fi
 
-        # Set output
-        echo "response=$(echo "${response[-1]}" | jq -c)" >> $GITHUB_OUTPUT
+        # Extract artifact count
+        no_artifacts=$(echo "${check[-1]}" | jq -r '.total_count')
+        echo "Found $no_artifacts artifact(s)!"
 
-        # Report results
-        echo "Found $(echo "${response[-1]}" | jq -r '.total_count') artifact(s)!"
+        # Set output
+        echo "no_artifacts=$no_artifacts" >> $GITHUB_OUTPUT
 
         # Cleanup
         rm response.txt
         unset response
+
+    - name: Fetch all artifacts
+      id: list
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        repo: ${{ inputs.repo }}
+        no_artifacts: ${{ steps.check.output.no_artifacts }}
+        page_size: 100
+        mismatch_fail: ${{ inputs.action_fail_on_list_mismatch }}
+      run: |
+        # Set placeholder file
+        echo '[]' > artifacts.json
+
+        # Calculate how many pages we need to iterate through
+        pages=$(expr 1 + $(expr $no_artifacts / $page_size))
+        echo "Iterating through $pages page(s)..."
+
+        # Iterate through each page, save array of artifacts to file
+        for page in $(seq 1 $pages); do
+
+          # Fetch page via API and save response
+          readarray -t response <<< $(gh api -i -X GET \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${repo}/actions/artifacts?per_page=${page_size}&page=${page}")
+
+          # Extract artifacts array from response
+          page_list=$(echo ${response[-1]} | jq '.artifacts')
+
+          # DEBUG
+          cat artifacts.json | jq --argjson list "$page_list" '. += $list'
+          cat artifacts.json | jq -r --argjson list "$page_list" '. += $list' | jq -rc 'flatten'
+
+          # Add to full list file
+          echo $(cat artifacts.json | jq -rc --argjson list "$page_list" '. += $list | flatten') > artifacts.json
+
+          unset response
+        done
+        echo "... done!"
+
+        # Verify the number of fetched artifacts matches what GitHub says
+        list_size=$(cat artifacts.json | jq 'length')
+        if [[ "$list_size" -eq "$no_artifacts" ]]; then
+          echo "Fetched all artifacts!"
+        else
+          echo "Artifact list mismatch!" >&2
+          echo "- Found $list_size artifacts but GitHub reports $no_artifacts artifacts." >&2
+          if [[ "$mismatch_fail" == "true" ]]; then
+            exit 1
+          fi
+        fi
+
+        # Set output
+        echo "artifacts=$(cat artifacts.json | jq -rc)" >> $GITHUB_OUTPUT
+
+        # Cleanup
+        rm artifacts.txt
 
     - name: Search artifacts
       id: search
       if: contains(fromJson('["search", "delete"]'), inputs.method) && inputs.search_name != ''
       shell: bash
       env:
-        artifacts: ${{ steps.list.outputs.response }}
+        artifacts: ${{ steps.list.outputs.artifacts }}
         search_query: ${{ inputs.search_name }}
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |

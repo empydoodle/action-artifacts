@@ -8,16 +8,27 @@ List, search or delete GitHub artifacts.
 
 Use `method` input: `list`.
 
+Checks the connection to the GitHub API with the passed values and generates a JSON array containing all artifacts in the repository, in the form of JSON objects.
+
 The following inputs are required for this, and all subsequent, methods:
 
-* `github_token`: Token to authenticate with GitHub API.
-* `repo`: The target repository (in the format `owner/repo`).
+* `github_token` (`string`): Token to authenticate with GitHub API.
+* `repo` (`string`): The target repository (in the format `owner/repo`).
+
+Optional inputs include:
+
+* `action_fail_on_list_mismatch` (`bool`/`string`): Fail the action (via `exit 1`) if the number of fetched artifacts does not match the number of artifacts reported by the GitHub API. Otherwise, it will notify the mismatch and continue with the fetched artifact array.
+
+It populates the following outputs:
+
+* `no_artifacts`: The number of artifacts in the passed repository (as reported by the GitHub API).
+* `artifacts`: JSON array of all artifacts in the repository.
 
 ```yml
     steps:
       - name: Get repo artifact list
         id: list-artifacts
-        uses: empydoodle/action-artifacts@v1
+        uses: empydoodle/action-artifacts@v2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           repo: ${{ github.repository }}
@@ -25,21 +36,30 @@ The following inputs are required for this, and all subsequent, methods:
 
       - name: List artifact names
         env:
-          no_artifacts: ${{ fromJson(steps.list-artifacts.outputs.artifacts).total_count }}
-          artifacts_json: ${{ fromJson(steps.list-artifacts.outputs.artifacts).artifacts }}
+          no_artifacts: ${{ steps.list-artifacts.outputs.no_artifacts }}
+          artifacts: ${{ fromJson(steps.list-artifacts.outputs.artifacts) }}
         run: |
-          echo $json | jq -r '.artifacts.[].name'
+          # Get list of artifact names
+          echo $artifacts | jq 'map(.name)'
 ```
-
-Returns standard API response of a JSON array of artifacts in the target repository (`repo`) - see [GitHub API documentation](https://docs.github.com/en/rest/actions/artifacts#list-artifacts-for-a-repository) for schema.
 
 ## Search for artifacts in a repository
 
 Use `method` input: `search`.
 
-Performs the `list` method, and searches the resulting array for any artifacts where the name matches the regex of the `search_name` input.
+Performs the `list` method, and searches the resulting array for any artifacts where the name matches the `search_name` input in part or fully.
 
-By default, an empty search result (i.e. no artifacts found) will not fail the action (but will show in log output). To enable this behaviour, set `action_fail_on_empty_search` input to `'true'` (as string).
+It requires the following inputs (in addition to `list` inputs):
+
+* `search_name` (`string`): Query to search artifact.
+
+Optional inputs (in addition to those for `list`):
+
+* `action_fail_on_empty_search` (`bool`/`string`): Fail the action if the search query yields no results. Otherwise, return an empty array
+
+It populates the following outputs (in addition to `list` outputs):
+
+* `search_results`: JSON array containing the objects returned by the search (in the form of JSON objects).
 
 ```yml
     steps:
@@ -62,15 +82,24 @@ By default, an empty search result (i.e. no artifacts found) will not fail the a
           done
 ```
 
-Returns a JSON array of artifacts that match the search criteria.
-
 ## Delete target artifacts in a repository
 
 Use `method` input: `delete`.
 
-Performs the `search` method, and deletes each artifact entry using the GitHub API. All inputs passed to `search` are applicable to this method as well.
+Performs the `search` method, and deletes each result using the GitHub API.
 
-By default, a failed delete operation will not fail the action (but will show in log output). To enable this behaviour, set `action_fail_on_delete_error` input to `'true'` (as string).
+Requires all inputs required by `search` method.
+
+Optional inputs (in addition to those for `search`):
+
+* `action_fail_on_delete_error` (`bool`/`string`): Fail the action if errors are encountered while deleting artifact(s). Otherwise continue.
+
+Populates the following outputs (in addition to `search` outputs):
+
+* `delete_results`: JSON array containing an object-per-artifact with the following values:
+  * `name` (`string`): name of the artifact.
+  * `id` (`int`): ID of the artifact.
+  * `deleted` (`bool`): Indicator of whether deletion was successful.
 
 ```yml
     steps:
@@ -97,21 +126,4 @@ By default, a failed delete operation will not fail the action (but will show in
               echo "Artifact $name was not deleted."
             fi
           done
-```
-
-Returns a JSON array containing the deletion result of each targeted artifact, e.g.:
-
-```json
-[
-  {
-    "name": "target-artifact-0",
-    "id": 123456789,
-    "deleted": true
-  },
-  {
-    "name": "target-artifact-1",
-    "id": 234567890,
-    "deleted": false
-  }
-]
 ```
