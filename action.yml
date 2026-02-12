@@ -111,7 +111,7 @@ runs:
             "/repos/${repo}/actions/artifacts?per_page=${page_size}&page=${page}")
 
           # Extract artifacts array from response
-          page_list=$(echo "${response[-1]}" | jq '.artifacts')
+          page_list=$(echo "${response[-1]}" | jq -rc '.artifacts')
 
           # Add to full list file
           echo "$(cat artifacts_list.json | jq -rc --argjson list "$page_list" '. += $list | flatten')" > artifacts_list.json
@@ -228,4 +228,4 @@ runs:
       if: always() && inputs.cleanup_files == 'true'
       shell: bash
       run: |
-        rm artifacts_list.json artifacts_search.json artifacts_delete.json
+        rm -f artifacts_list.json artifacts_search.json artifacts_delete.json

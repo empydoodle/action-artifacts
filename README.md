@@ -2,6 +2,8 @@
 
 List, search or delete GitHub artifacts.
 
+Results are available either via `output` or in files.
+
 # Usage
 
 ## List artifacts in a repository
@@ -43,7 +45,7 @@ It populates the following outputs:
           echo $artifacts | jq 'map(.name)'
 ```
 
-The list artifacts is available in the `artifacts_list.json` file.
+The list of artifacts is available in the `artifacts_list.json` file.
 
 ## Search for artifacts in a repository
 
