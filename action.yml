@@ -141,12 +141,12 @@ runs:
       if: contains(fromJson('["search", "delete"]'), inputs.method) && inputs.search_name != ''
       shell: bash
       env:
-        artifacts: ${{ steps.list.outputs.artifacts }}
         search_query: ${{ inputs.search_name }}
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |
         # Extract target artifact(s)
-        search=$(echo "$artifacts" | jq -c --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')
+        # Populate var in-script to avoid "Argument list too long" errors
+        search=$(echo "${{ steps.list.outputs.artifacts }}" | jq -c --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')
 
         # Validate and report result
         search_count=$(echo "$search" | jq -r 'length')
