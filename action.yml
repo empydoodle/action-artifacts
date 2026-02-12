@@ -93,8 +93,10 @@ runs:
         page_size: 100
         mismatch_fail: ${{ inputs.action_fail_on_list_mismatch }}
       run: |
+        # Fetch all artifacts in repo
+
         # Set placeholder file
-        echo '[]' > artifacts.json
+        echo '[]' > artifacts_list.json
 
         # Calculate how many pages we need to iterate through
         pages=$(expr 1 + $(expr $no_artifacts / $page_size))
@@ -109,17 +111,17 @@ runs:
             "/repos/${repo}/actions/artifacts?per_page=${page_size}&page=${page}")
 
           # Extract artifacts array from response
-          page_list=$(echo "${response[-1]}" | jq '.artifacts')
+          page_list=$(echo "${response[-1]}" | jq -rc '.artifacts')
 
           # Add to full list file
-          echo "$(cat artifacts.json | jq -rc --argjson list "$page_list" '. += $list | flatten')" > artifacts.json
+          echo "$(cat artifacts_list.json | jq -rc --argjson list "$page_list" '. += $list | flatten')" > artifacts_list.json
 
           unset response
         done
         echo "... done!"
 
         # Verify the number of fetched artifacts matches what GitHub says
-        list_size=$(cat artifacts.json | jq 'length')
+        list_size=$(cat artifacts_list.json | jq 'length')
         if [[ "$list_size" -eq "$no_artifacts" ]]; then
           echo "Fetched all artifacts!"
         else
@@ -131,25 +133,21 @@ runs:
         fi
 
         # Set output
-        echo "artifacts=$(cat artifacts.json | jq -rc)" >> $GITHUB_OUTPUT
-
-        # Cleanup
-        rm artifacts.json
+        echo "artifacts=$(cat artifacts_list.json | jq -rc)" >> $GITHUB_OUTPUT
 
     - name: Search artifacts
       id: search
       if: contains(fromJson('["search", "delete"]'), inputs.method) && inputs.search_name != ''
       shell: bash
       env:
-        artifacts: ${{ steps.list.outputs.artifacts }}
         search_query: ${{ inputs.search_name }}
         no_results_fail: ${{ inputs.action_fail_on_empty_search }}
       run: |
-        # Extract target artifact(s)
-        search=$(echo "$artifacts" | jq -c --arg q "$search_query" '.artifacts | map(select(.name | test($q)))')
+        # Extract target artifact(s) to results file
+        echo "$(cat artifacts_list.json | jq -rc --arg q "$search_query" 'map(select(.name | test($q)))')" > artifacts_search.json
 
         # Validate and report result
-        search_count=$(echo "$search" | jq -r 'length')
+        search_count=$(cat artifacts_search.json | jq -r 'length')
         if [[ "$search_count" -gt 0 ]]; then
           echo "Found $search_count artifacts(s) matching the search criteria! (Search regex: $search_query)"
         else
@@ -160,7 +158,7 @@ runs:
         fi
 
         # Set output
-        echo "results=$(echo $search | jq -c)" >> $GITHUB_OUTPUT
+        echo "results=$(cat artifacts_search.json | jq -rc)" >> $GITHUB_OUTPUT
 
     - name: Delete artifacts
       id: delete
@@ -169,12 +167,11 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         repo: ${{ inputs.repo }}
-        search: ${{ steps.search.outputs.results }}
         no_delete_fail: ${{ inputs.action_fail_on_delete_error }}
       run: |
         # Delete artifacts
         results="[]"
-        for artifact in $(echo "$search" | jq -rc '.[]'); do
+        for artifact in $(cat artifacts_search.json | jq -rc '.[]'); do
           id=$(echo "$artifact" | jq -r '.id')
           name=$(echo "$artifact" | jq -r '.name')
           echo "Deleting artifact: $name (ID: $id)..."
@@ -220,8 +217,15 @@ runs:
 
         # Set output
         echo "results=$(echo $results | jq -c)" >> $GITHUB_OUTPUT
+        echo "$results" > artifacts_delete.json
 
         # Report results
         total=$(echo "$results" | jq -r 'length')
         success=$(echo "$results" | jq -r 'map(select(.deleted == true)) | length')
         echo "Successfully deleted $success/$total artifacts!"
+
+    - name: Cleanup files
+      if: always() && inputs.cleanup_files == 'true'
+      shell: bash
+      run: |
+        rm -f artifacts_list.json artifacts_search.json artifacts_delete.json
