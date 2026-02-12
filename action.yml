@@ -112,14 +112,14 @@ runs:
           page_list=$(echo "${response[-1]}" | jq '.artifacts')
 
           # Add to full list file
-          echo "$(cat artifacts.json | jq -rc --argjson list "$page_list" '. += $list | flatten')" > artifacts_list.json
+          echo "$(cat artifacts_list.json | jq -rc --argjson list "$page_list" '. += $list | flatten')" > artifacts_list.json
 
           unset response
         done
         echo "... done!"
 
         # Verify the number of fetched artifacts matches what GitHub says
-        list_size=$(cat artifacts.json | jq 'length')
+        list_size=$(cat artifacts_list.json | jq 'length')
         if [[ "$list_size" -eq "$no_artifacts" ]]; then
           echo "Fetched all artifacts!"
         else
