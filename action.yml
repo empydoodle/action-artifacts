@@ -19,7 +19,7 @@ inputs:
     default: ''
     required: false
   action_fail_on_list_mismatch:
-    description: "Fail the action if the populated list of artifacts' size does not equal the size report by GitHub API"
+    description: "Fail the action if the populated artifact list size does not equal the size reported by GitHub API"
     default: 'false'
     required: false
   action_fail_on_empty_search:
